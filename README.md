@@ -1,4 +1,4 @@
-## icmpping from zabbix-agent
+# icmpping from zabbix-agent
 
 ## An example of compile in clean installation of Ubuntu server 20.04
 sudo apt install golang libz-dev libpcre3-dev -y  
