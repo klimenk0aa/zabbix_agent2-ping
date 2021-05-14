@@ -1,0 +1,99 @@
+diff -urN zabbix-5.0.11.orig/src/go/plugins/icmpping/icmpping.go zabbix-5.0.11/src/go/plugins/icmpping/icmpping.go
+--- zabbix-5.0.11.orig/src/go/plugins/icmpping/icmpping.go	1970-01-01 03:00:00.000000000 +0300
++++ zabbix-5.0.11/src/go/plugins/icmpping/icmpping.go	2021-05-14 21:28:58.223679292 +0300
+@@ -0,0 +1,86 @@
++package icmpping
++import "zabbix.com/pkg/plugin"
++//import "github.com/sparrc/go-ping"
++import "github.com/go-ping/ping"
++
++import (
++	"errors" 
++	"time"
++	"strconv"
++	)
++//import "fmt"
++
++type Plugin struct {
++        plugin.Base
++}
++var impl Plugin
++
++
++func (p *Plugin) Export(key string, params []string, ctx plugin.ContextProvider) (result interface{}, err error){
++	var target string
++	var packets,interval,size,timeout int
++	timeout = 2000
++	size = 68
++	interval = 500
++	packets = 3
++	switch len(params) {
++		case 5:
++			timeout, err = strconv.Atoi(params[4])
++			if err != nil {
++				timeout = 2000
++			}
++			fallthrough
++		case 4:
++			size, err = strconv.Atoi(params[3])
++			if err != nil {
++				size = 68
++			}
++			fallthrough
++		case 3:
++			interval, err = strconv.Atoi(params[2])
++			if err != nil {
++				interval = 500
++			}
++			fallthrough
++		case 2:
++			packets, err = strconv.Atoi(params[1])
++			if err != nil {
++				packets =3
++			}
++			fallthrough
++		case 1:
++			target = params[0]
++		default:
++			return nil, errors.New("Too many parameters.")
++	}
++        if target == "" {
++        	target = "127.0.0.1"
++        }
++        pinger, err := ping.NewPinger(target)
++        if err != nil {
++                return nil, err
++        }
++        pinger.SetPrivileged(true)
++        pinger.Count = packets
++        pinger.Interval = time.Duration(interval) * time.Millisecond
++        pinger.Size = size
++        pinger.Timeout = time.Duration(timeout) * time.Millisecond
++        pinger.Run()
++        stats := pinger.Statistics()
++        loss_pct := stats.PacketLoss
++        //fmt.Printf("%v\n", params)
++	//fmt.Printf("%v\n", stats)
++	var res int
++	if loss_pct < 100 {
++		res=1
++	} else {
++		res=0
++	}
++	return res, nil
++}	
++
++
++func init() {
++        plugin.RegisterMetrics(&impl, "icmpping", "icmpping", "Ping address.")
++}
++
+diff -urN zabbix-5.0.11.orig/src/go/plugins/plugins_linux.go zabbix-5.0.11/src/go/plugins/plugins_linux.go
+--- zabbix-5.0.11.orig/src/go/plugins/plugins_linux.go	2021-04-19 14:49:38.000000000 +0300
++++ zabbix-5.0.11/src/go/plugins/plugins_linux.go	2021-05-13 22:28:58.296730853 +0300
+@@ -51,4 +51,5 @@
+ 	_ "zabbix.com/plugins/zabbix/async"
+ 	_ "zabbix.com/plugins/zabbix/stats"
+ 	_ "zabbix.com/plugins/zabbix/sync"
++	_ "zabbix.com/plugins/icmpping"
+ )
